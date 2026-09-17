@@ -1,0 +1,24 @@
+{
+    "cameras": {
+        "camera_1": {
+            "height_ft": null,
+            "ground_x_ft": null,
+            "ground_y_ft": null
+        },
+        "camera_2": {
+            "height_ft": null,
+            "ground_x_ft": null,
+            "ground_y_ft": null
+        },
+        "camera_3": {
+            "height_ft": null,
+            "ground_x_ft": null,
+            "ground_y_ft": null
+        },
+        "camera_4": {
+            "height_ft": null,
+            "ground_x_ft": null,
+            "ground_y_ft": null
+        }
+    }
+}

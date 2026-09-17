@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CCTV Distance Estimation</title><link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="app-shell">
+<header class="header">
+  <div class="brand"><div class="cam-logo"><span></span></div><div><h1>CCTV Distance Estimation</h1><p>Multi-Camera | Constant Object | 3D Distance Measurement</p></div></div>
+  <div class="project"><div><span>Project:</span> <b>Local CCTV Analysis</b></div><div class="meta"><span>▣ <strong id="date">—</strong></span><span>◷ <strong id="clock">—</strong></span></div></div>
+</header>
+<div class="dashboard">
+<aside class="sidebar">
+<section class="card input"><h2>1. INPUT VIDEOS</h2><div class="label">LOCAL CCTV FOLDER</div><div class="folder">▣ <span>input_videos</span><button id="refresh">↻</button></div><div class="upload-row"><input id="videoUpload" type="file" accept="video/*,.mp4,.avi,.mov,.mkv,.m4v" multiple hidden><button id="addVideos" class="add-btn">＋ Add CCTV Videos</button><span id="uploadStatus"></span></div><div id="files"></div><p class="hint">Any number of local recordings. Add one or many videos. Files are stored locally in <b>input_videos</b>.</p></section>
+<section class="card target"><h2>2. CONSTANT OBJECT</h2><div id="targetBox" class="target-box">Select a fixed/common point directly in <b>Camera 01</b>.</div><div class="label">SELECTION MODE</div><div class="constant"><i></i> User-selected fixed point</div><p class="hint">Click the same physical feature/point visible across the CCTV views.</p><button id="analyze" disabled>▶ Start Analysis</button></section>
+<section class="card pipeline"><h2>3. PROCESSING PIPELINE</h2><div id="pipeline"></div></section>
+</aside>
+<main class="main">
+<section class="card camera-section"><div class="section-head"><h2>4. MULTI-CAMERA VIEWS <em id="cameraState">(Waiting)</em></h2><span>RECORDED FOOTAGE</span></div><div id="cameraGrid" class="camera-grid"></div></section>
+<div class="lower-grid">
+<section class="card reconstruction"><div class="section-head"><h2>5. 3D RECONSTRUCTION <em id="reconState">(Waiting)</em></h2></div><div class="views"><button class="view active" data-view="top">Top View</button><button class="view" data-view="perspective">Perspective View</button><button class="view" data-view="side">Side View</button></div><canvas id="scene"></canvas><div class="legend"><span><i class="ray"></i> Camera → Target Ray</span><span><i class="dot"></i> Reconstructed Target</span></div></section>
+<div class="right-stack">
+<section class="card results"><h2>6. DISTANCE RESULTS</h2><div id="results"></div></section>
+<div class="mini-grid"><section class="card scale"><h2>7. SCALE RECOVERY</h2><div id="scale"></div></section><section class="card status"><h2>8. SYSTEM STATUS</h2><div id="status"></div></section></div>
+</div></div>
+</main></div>
+<footer><div>◈ <b>System Status:</b> <strong id="footerStatus">Ready</strong></div><div>▣ Cameras Connected: <b id="footerCams">0 / 0</b></div><div>◷ Processing Time: <b id="footerTime">00:00:00</b></div><button id="export">⇩ Export Report</button></footer>
+</div><script src="/static/app.js"></script>
+</body></html>

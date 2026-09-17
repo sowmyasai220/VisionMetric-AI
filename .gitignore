@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.freebuff/
+input_videos/
+uploads/
+uploads_test_e2e/
+videos/
+frames/
+outputs/
+results/
+*.zip
+CCTV_DISTANCE_ESTIMATION_FINAL_LOCKED/ 
+cctv_distance_webapp/yolo11n.pt 

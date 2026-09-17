@@ -1,0 +1,285 @@
+import os
+import sys
+import json
+import subprocess
+from pathlib import Path
+from datetime import datetime
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_DIR = PROJECT_ROOT / "src"
+RESULTS_DIR = PROJECT_ROOT / "results"
+
+
+def run_step(title, script, args=None):
+    """Run one existing pipeline module."""
+    print("\n" + "=" * 70)
+    print(title)
+    print("=" * 70)
+
+    command = [sys.executable, str(SRC_DIR / script)]
+
+    if args:
+        command.extend(args)
+
+    print("Running:", " ".join(command))
+
+    result = subprocess.run(
+        command,
+        cwd=str(PROJECT_ROOT)
+    )
+
+    if result.returncode != 0:
+        print(f"\nWARNING: {script} returned exit code {result.returncode}")
+        return False
+
+    print(f"\nSUCCESS: {script}")
+    return True
+
+
+def discover_videos(video_folder):
+    """Discover supported videos recursively."""
+    folder = Path(video_folder)
+
+    extensions = {
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".mkv",
+        ".wmv",
+        ".m4v",
+    }
+
+    videos = []
+
+    if not folder.exists():
+        return videos
+
+    for path in folder.rglob("*"):
+        if path.is_file() and path.suffix.lower() in extensions:
+            videos.append(path)
+
+    return sorted(videos)
+
+
+def load_json(path):
+    """Safely load a JSON result."""
+    if not path.exists():
+        return None
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def build_final_report(video_folder, step_status):
+    """Create one final project report."""
+    videos = discover_videos(video_folder)
+
+    multi_camera = load_json(
+        RESULTS_DIR / "multi_camera_report.json"
+    )
+
+    visual_scale = load_json(
+        RESULTS_DIR / "visual_scale_result.json"
+    )
+
+    metric_integration = load_json(
+        RESULTS_DIR / "metric_integration.json"
+    )
+
+    geometry = load_json(
+        RESULTS_DIR / "multi_camera_geometry.json"
+    )
+
+    report = {
+        "project": "CCTV Distance Analyser",
+
+        "generated_at": datetime.now().isoformat(),
+
+        "input_folder": str(Path(video_folder).resolve()),
+
+        "camera_count": len(videos),
+
+        "cameras": [
+            {
+                "name": video.name,
+                "path": str(video.resolve())
+            }
+            for video in videos
+        ],
+
+        "pipeline_status": step_status,
+
+        "geometry": geometry,
+
+        "multi_camera_reconstruction": multi_camera,
+
+        "visual_metric_scale": visual_scale,
+
+        "metric_integration": metric_integration,
+
+        "final_status": {
+            "relative_3d_reconstruction":
+                multi_camera is not None,
+
+            "visual_metric_scale":
+                visual_scale is not None
+                and visual_scale.get("scale_m_per_relative_unit")
+                is not None,
+
+            "metric_distance":
+                visual_scale is not None
+                and bool(
+                    visual_scale.get("metric_distances")
+                ),
+
+            "final_ui":
+                False
+        },
+
+        "important_note":
+            "Metric results are estimates and depend on successful "
+            "multi-view reconstruction and visual scale recovery."
+    }
+
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    output = RESULTS_DIR / "final_pipeline_report.json"
+
+    with open(output, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2)
+
+    return output
+
+
+def main():
+    print("=" * 70)
+    print("CCTV DISTANCE ANALYSER")
+    print("STEP 11 — END-TO-END AUTOMATIC PIPELINE")
+    print("=" * 70)
+
+    if len(sys.argv) < 2:
+        print("\nUsage:")
+        print("  py src\\end_to_end_pipeline.py videos")
+        sys.exit(1)
+
+    video_folder = Path(sys.argv[1])
+
+    if not video_folder.exists():
+        print(f"\nERROR: Folder not found: {video_folder}")
+        sys.exit(1)
+
+    videos = discover_videos(video_folder)
+
+    print(f"\nInput folder : {video_folder}")
+    print(f"Videos found : {len(videos)}")
+
+    if len(videos) < 2:
+        print(
+            "\nERROR: At least two overlapping CCTV videos "
+            "are required for multi-view reconstruction."
+        )
+        sys.exit(1)
+
+    print("\nDetected cameras:")
+
+    for index, video in enumerate(videos, start=1):
+        print(f"  {index}. {video.name}")
+
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    step_status = {}
+
+    # ------------------------------------------------------------
+    # STEP 1 — Geometry
+    # ------------------------------------------------------------
+
+    step_status["camera_geometry"] = run_step(
+        "STAGE 1 — AUTOMATIC CAMERA / SCENE GEOMETRY",
+        "multi_camera_geometry.py",
+        [str(video_folder)]
+    )
+
+    # ------------------------------------------------------------
+    # STEP 2 — Multi-camera 3D reconstruction
+    # ------------------------------------------------------------
+
+    # Stage 2 must write its own report. Its default output path is
+    # results/target_point_report.json, which the target-specific stage
+    # (Step 13) also writes; letting both share one file made the metric
+    # stages read a missing/overwritten report.
+    step_status["multi_camera_3d"] = run_step(
+        "STAGE 2 — MULTI-CAMERA 3D RECONSTRUCTION",
+        "multi_camera_pipeline.py",
+        [
+            str(video_folder),
+            "--output", str(RESULTS_DIR / "multi_camera_report.json"),
+        ]
+    )
+
+    # ------------------------------------------------------------
+    # STEP 3 — Visual metric scale
+    # ------------------------------------------------------------
+
+    # The scale stage searches the same folder the rest of the pipeline uses.
+    step_status["visual_metric_scale"] = run_step(
+        "STAGE 3 — VISUAL METRIC SCALE RECOVERY",
+        "visual_scale_from_people.py",
+        ["--videos", str(video_folder)]
+    )
+
+    # ------------------------------------------------------------
+    # STEP 4 — Metric integration
+    # ------------------------------------------------------------
+
+    step_status["metric_integration"] = run_step(
+        "STAGE 4 — METRIC DISTANCE INTEGRATION",
+        "metric_integration.py"
+    )
+
+    # ------------------------------------------------------------
+    # STEP 5 — Per-camera visual metric layer
+    # (camera->ground height + camera->object distance estimates)
+    # ------------------------------------------------------------
+
+    step_status["visual_metric_layer"] = run_step(
+        "STAGE 5 — PER-CAMERA VISUAL METRIC LAYER",
+        "visual_metric_layer.py",
+        [str(video_folder)]
+    )
+
+    # ------------------------------------------------------------
+    # FINAL REPORT
+    # ------------------------------------------------------------
+
+    print("\n" + "=" * 70)
+    print("CREATING FINAL PIPELINE REPORT")
+    print("=" * 70)
+
+    output = build_final_report(
+        video_folder,
+        step_status
+    )
+
+    print("\n" + "=" * 70)
+    print("STEP 11 PIPELINE COMPLETE")
+    print("=" * 70)
+
+    print(f"\nFinal report:")
+    print(output)
+
+    print("\nPipeline stages:")
+
+    for name, status in step_status.items():
+        symbol = "OK" if status else "FAILED"
+        print(f"  [{symbol}] {name}")
+
+    print("\nNext stage:")
+    print("  Streamlit professional application")
+
+
+if __name__ == "__main__":
+    main()
